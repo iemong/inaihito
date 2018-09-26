@@ -1,14 +1,20 @@
 <template lang="pug">
     - path = "@/assets/images/"
     .home
-        input(type="file" ref="allTogether" @change="addFile")
-        input(type="file" ref="file" @change="insertFile")
+        .first(v-if="!isFirst")
+            label(for="first") 集合写真を追加してください
+            input(type="file" id="first" ref="allTogether" @change="addFile")
+        .second(v-if="isFirst")
+            label(for="second") 来れなかった人の写真を追加してください
+            input(type="file" id="second" ref="file" @change="insertFile")
         .image-wrapper(ref="imageWrapper")
-
+        .third(v-if="isSecond")
+            a(:href="downloadUrl" download="peaceful.png") 保存する
 </template>
 
 <script>
 import _ from "lodash";
+import html2canvas from "html2canvas";
 
 const URL = "https://kiyoshidainagon-node-red-app.mybluemix.net/vr/recognize";
 
@@ -19,7 +25,10 @@ export default {
       width: 0,
       height: 0,
       left: 0,
-      top: 0
+      top: 0,
+      isFirst: false,
+      isSecond: false,
+      downloadUrl: null
     };
   },
   computed: {
@@ -33,7 +42,7 @@ export default {
       };
     },
     position() {
-      return `circle(${this.length / 2}px at ${this.center.x}px ${
+      return ` circle(${this.length / 2 + 20}px at ${this.center.x}px ${
         this.center.y
       }px)`;
     }
@@ -62,6 +71,9 @@ export default {
       const data = await this.loadFile(files[0]);
       const $image = await this.loadImage(data);
       this.$refs.imageWrapper.appendChild($image);
+      this.$refs.imageWrapper.style.width = `${$image.width}px`;
+
+      this.isFirst = true;
     },
     insertFile: async function(evt) {
       const files = evt.target.files;
@@ -77,8 +89,20 @@ export default {
       this.left = json.face_location.left;
       this.top = json.face_location.top;
 
+      $image.classList.add("trim-image");
       $image.style.clipPath = this.position;
+      $image.style.top = `${(this.center.y - this.height / 2 - 30) * -1}px`;
+      $image.style.left = `${(this.center.x + this.width / 2 + 30) * -1 +
+        this.$refs.imageWrapper.clientWidth}px`;
+      $image.style.transformOrigin = `${this.center.x + this.width / 2}px ${this
+        .center.y -
+        this.height / 2}px`;
+      $image.style.transform = "scale(0.5)";
       this.$refs.imageWrapper.appendChild($image);
+
+      const canvas = await html2canvas(this.$refs.imageWrapper);
+      this.downloadUrl = canvas.toDataURL("image/png");
+      this.isSecond = true;
     }
   }
 };
@@ -89,4 +113,6 @@ export default {
         position: relative
         width: 800px
         text-align: left
+    .trim-image
+        position: absolute
 </style>
